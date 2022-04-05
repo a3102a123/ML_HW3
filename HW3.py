@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import sys
 
 is_random = False
-is_test = True
+is_test = False
+dis_num = 3
 seed = 521
 
 N = 10000
@@ -29,7 +30,7 @@ def poly_generator(a,W):
     y = normal_generator(0,a)[0]
     for i,w in enumerate(W):
         y += w*x**i
-    return y
+    return x, y
 
 def Sequential(mu,sigma2):
     mean = 0
@@ -48,25 +49,50 @@ def Sequential(mu,sigma2):
         print("Add data point: {}".format(x))
         print("Meat = {}Variance = {}".format(f'{mean:<20}',f'{var:<20}'))
 
+def calc_poly(X,W):
+    Y = []
+    for x in X:
+        y = 0
+        for i,w in enumerate(W):
+            y += x**i * w
+        Y.append(y)
+    return np.array(Y)
+
+def draw_ground_truth(W,var):
+    X = np.linspace(-2,2,num = 1000)
+    Y = calc_poly(X,W)
+    plt.title("Ground truth")
+    plt.plot(X,Y,'k')
+    plt.plot(X,Y + var,'r')
+    plt.plot(X,Y - var,'r')
+
 def Baysian(gb,ga,W):
     # test data
     sample_x = [-0.64152 , 0.07122 , -0.19330]
     sample_y = [0.19039 ,  1.63175 , 0.24507]
     sample_len = len(sample_x)
 
+    # array for storing data
+    data = []
+    W10 = None
+    W50 = None
+
     n = len(W)
     # the mean & var of W coefficient
     # w_co_var = the inverse of covariance
     I = np.identity(n)
-    w_co_var = np.linalg.inv(gb * I)
-    w_co_var_inv = np.linalg.inv(gb * I)
+    w_co_var = np.linalg.inv(gb*I) 
+    w_co_var_inv = np.linalg.inv(gb*I)
     w_mu = np.zeros((n,1))
+    # the variance factor of initial distribution
+    a = gb
     # the design matrix X
     X = np.zeros((1,n))
     # the mean & var of Predictive distribution ~ N(mean , var)
     mean = 0
     var = 0
     for i in range(N):
+        x , y = poly_generator(ga,W)
         if is_test:
             if i >= sample_len:
                 break
@@ -74,23 +100,67 @@ def Baysian(gb,ga,W):
             y = sample_y[i]
         for k in range(n):
             X[0,k] = x**k
-        print("Add data point ({}, {}):".format(x,y),"\n")
-        print("mean / var : ",mean, " / " , var )
         if var == 0:
             var = 1
-        a = 1 / var
         b = w_co_var_inv
         S = w_co_var_inv
-        print(X)
         w_co_var_inv = a * (X.T @ X) + b@I
         w_co_var = np.linalg.inv(w_co_var_inv)
         w_mu = w_co_var @ (a * X.T * y + S@w_mu)
-        print("Predict Y : ",X @ w_mu)
         mean = 0.00000
         var = 1.0
-        print("Postirior mean:\n",w_mu,"\n")
-        print("Posterior variance:\n",w_co_var,"\n")
-        print("Predictive distribution ~ N({}, {})".format(mean,var) , "\n")
+
+        if i < dis_num:
+            print("Add data point ({}, {}):".format(x,y),"\n")
+            print("mean / var : ",mean, " / " , var )
+            print("X : \n",X,"\nPredict Y : ",X @ w_mu)
+
+            print("Postirior mean:\n",w_mu,"\n")
+            print("Posterior variance:\n",w_co_var,"\n")
+            print("Predictive distribution ~ N({}, {})".format(mean,var) , "\n")
+        # storing data
+        data.append([x,y])
+        if (i + 1) == 10:
+            W10 = w_mu.copy()
+        elif (i + 1) == 50:
+            W50 = w_mu.copy()
+
+        # break
+    
+    # plot the result
+    X = np.linspace(-2,2,num = 1000)
+    plt.figure(figsize=(8, 6), dpi=120)
+    plt.subplot(221)
+    plt.axis((min(X),max(X),-18,22))
+    draw_ground_truth(W,ga)
+
+    plt.subplot(222)
+    data = np.array(data)
+    Y = calc_poly(X,w_mu)
+    data_x = data[:,0]
+    data_y = data[:,1]
+    plt.title("Predict result")
+    plt.plot(X,Y,'k')
+    plt.scatter(data_x,data_y,color='b',s=15)
+
+    plt.subplot(223)
+    Y = calc_poly(X,W10)
+    data_10 = data[0:10]
+    data_x = data_10[:,0]
+    data_y = data_10[:,1]
+    plt.title("After 10 incomes")
+    plt.plot(X,Y,'k')
+    plt.scatter(data_x,data_y,color='b',s=15)
+
+    plt.subplot(224)
+    Y = calc_poly(X,W50)
+    data_50 = data[0:50]
+    data_x = data_50[:,0]
+    data_y = data_50[:,1]
+    plt.title("After 50 incomes")
+    plt.plot(X,Y,'k')
+    plt.scatter(data_x,data_y,color='b',s=15)
+    plt.show()
 
 # main
 if is_random:
