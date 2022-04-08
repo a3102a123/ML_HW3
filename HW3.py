@@ -143,6 +143,11 @@ def Baysian(gb,ga,W):
             is_conv = True
 
         if i < dis_num or i == (N - 1) or is_conv:
+            if i == (N - 1) or is_conv:
+                print(".\n".center(20))
+                print(".\n".center(20))
+                print(".\n".center(20))
+                print("Last iteration result : \n")
             print("Add data point ({}, {}):".format(x,y),"\n")
             print("Postirior mean:\n",w_mu,"\n")
             print("Posterior variance:\n",w_co_var,"\n")
